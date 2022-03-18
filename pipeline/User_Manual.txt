@@ -1,0 +1,349 @@
+**********************************************************************|
+****Ensamblar, Clasificar Plásmidos y Anotar Genomas Bacterianos *****|
+**********************************************************************|
+*********** Anotacion_Bacterias.py ************** V 1.0 **************|
+----------------------------------------------------------------------|
+Funcion:                                                              |
+                                                                      |
+Este Script le permite ejecutar sobre un conjunto de aislamientos     |
+ bacterianos con lecturas limpias(preferiblemente) de secuenciación   |
+ de genoma completo los siguientes procesos:                          |
+1.  Ensamblaje de novo genoma completo, herramienta Spades.           |
+2.  Ensamblaje de plásmidos, herramienta PlasmidSpades.               |
+3.  Identificación de Plásmidos por algoritmo.                        |
+    IA(Inteligencia Artificial), herramienta PlasFlow.                |
+4.  Identificación de plásmidos por número de copias, Script          |
+    en Python 3.7.                                                    |
+5.  Identificación de plásmidos por Homologia contra bases de datos   |
+    Blast de plásmidos bacterianos y cromosomas específicos de la     |
+    bacteria, Script en Python 3.7.                                   |
+    Bases de datos administradas con el gestor de bases de datos      |
+    desarrollado en el instituto de Bioinformática,                   |
+     Script Create_Update_BD.py                                       |
+6.  Consenso de contigs de plásmidos, script en Python 3.7.           |
+7.  Anotación de contigs de Plásmidos, Cromosoma y Genoma completo    |
+    con herramienta Prokka.                                           |
+8.  Creación de pan genoma, herramienta Roary.                        |
+----------------------------------------------------------------------|
+Descripción:                                                          |
+                                                                      |
+Este Script es un algoritmo que implementa varias metodologías para   |
+la identificación de contigs asociados a secuencias de plásmidos,     |
+a partir de lecturas de secuenciación de nueva generación (NGS)       |
+de genoma completo. También ejecuta la anotación de plásmidos,        |
+cormosoma y el genoma completo.                                       |
+                                                                      |
+----------------------------------------------------------------------|
+Requerimientos:                                                       |
+                                                                      |
+Para la correcta ejecucion del script Anotacion_Bacterias.py          |
+se requiere:                                                          |
+    * version de python 3.4 o posteriores                             |
+      - librerias python:                                             |
+            / sys                                                     |
+            / getopt                                                  |
+            / os                                                      |
+            / errno                                                   |
+            / datetime from datetime                                  |
+            / sklearn.metrics import precision_score                  |
+            / csv                                                     |
+            / glob                                                    |
+            / Bio import SeqIO                                        |
+            / numpy                                                   |
+            / statistics                                              |
+            / typing import Dict, Any                                 |
+                                                                      |
+----------------------------------------------------------------------|
+Funcionamiento:                                                       |
+                                                                      |
+Este Script puede funcionar por medio de una interface de usuario     |
+interactiva que lo guiara a través de los procesos de configuración   |
+de los parámetros necesarios para correr el pipeline ó puede ejecutar |
+también desde línea de comandos con las instrucciones suficientes     |
+como se muestra a continuación.                                       |
+                                                                      |
+Parametros:                                                           |
+>>  python Anotacion_Bacterias.py                                     |
+  #Ingresar el script sin argumentos lo guiará al proceso interactivo |
+   del pipe.                                                          |
+                                                                      |
+>>  python Anotacion_Bacterias.py -h                                  |
+  #(-h) Le mostrará las instrucciones básicas de uso.                 |
+                                                                      |
+>>  python Anotacion_Bacterias.py -m                                  |
+  #(-m) Le mostrara el manual de usuario: función, descripción,       |
+   funcionamiento, requerimientos, estructura de datos y versión.     |
+                                                                      |
+  El parámetro –r y –c son indispensables para el funcionamiento      |
+      del pipeline en la forma línea de comnados.                     |
+                                                                      |
+>>  python Create_Update_BD.py –r <archivo (txt)> -c <'Bacteria'>     |
+  #(-r) Ruta archivo (txt), con la lista de las direcciones           |
+   absolutas, separadas por salto de línea ('\n') de las carpetas     |
+   a procesar.                                                        |
+   Esta lista puede ser creada con el comando:                        |
+                      ls -d "$PWD/" > lista.txt                       |
+  #(-c) El Script usa una base de datos con el nombre de la           |
+   bacteria especificada, para la busqueda de homologos sobre los     |
+   archivos especificados con el parametro <-r>:                      |
+   Bases de Datos de cromosomas bacterianos:                          |
+     a.	Acinetobacter_baumannii                                       |
+     b.	Klebsiella_pneumoniae                                         |
+     c.	Providencia_rettgeri                                          |
+     d.	Pseudomonas_aeruginos                                         |
+                                                                      |
+>>  python Create_Update_BD.py –r <archivo (txt)> -c <'Bacteria'>     |
+     -k <#,#,#,#,#,#>                                                 |
+  #(-r,-c,-k) De incluir el parámetro <-k> con los kmers separados    |
+   por coma (,), el programa implementará estos tamaños en el         |
+   ensamblaje de novo de la herrameinta Spades y PlasmidSpades        |
+                                                                      |
+>>  python Create_Update_BD.py –r <archivo (txt)> -c <'Bacteria'>     |
+     -k <#,#,#,#,#,#> -d <Reads_Clean>                                |
+  #(-r,-c,-k,-d) De incluir el parámetro <-d> se especifica el        |
+   formato "nombre de la carpeta", donde reciden las lecturas         |
+   filtradas, de esta manera el pipe podrá ejecutar los ensambles,    |
+   por defecto el programa busca el formato de carpeta “Reads_Clean”  |
+                                                                      |
+>>  python Create_Update_BD.py –r <archivo (txt)> -c <'Bacteria'>     |
+     -k <#,#,#,#,#,#> -d <Reads_Clean>                                |
+     -1 <r1.p.fastq> -2 <r2.p.fastq> -3 <r1.u.fastq> -4 <r2.u.fastq>  |
+  #(-r,-c,-k,-d,-1,-2,-3,-4) De incluir los parámetros <1,2,3,4>      |
+   con las terminaciones literales de los archivos fastq,             |
+   el programa usará estos índices para buscar las lecturas           |
+   de secuenciación en los ensamblajes.                               |
+   estos índices deben tener el siguiente orden:                      |
+   -1 <reads1-pareado> -2 <reads2-pareado> -3 <reads1-no-pariado>     |
+   -4 <reads2-no-pariado>                                             |
+   Por defecto el pipe implementa:                                    |
+   “R1_001.paired.fastq.gz,R1_001.unpaired.fastq.gz,                  |
+   R2_001.paired.fastq.gz,R2_001.unpaired.fastq.gz”                   |
+                                                                      |
+  EJEMPLO: si sus lecturas son las siguientes                         |
+    ERR2929690_1.p.fastq                                              |
+    ERR2929690_1.u.fastq                                              |
+    ERR2929690_2.p.fastq                                              |
+    ERR2929690_2.u.fastq                                              |
+                                                                      |
+    Usted debe usar en los parametro -1,-2,-3,-4                      |
+    la siguiente configuración                                        |
+    -1 _1.p.fastq -2 _2.p.fastq -3 _1.u.fastq -4 _2.u.fastq           |
+                                                                      |
+                                                                      |
+>>  python Create_Update_BD.py –r <archivo (txt)> -c <'Bacteria'>     |
+     -k <#,#,#,#,#,#> -d <Reads_Clean>                                |
+     -l <r1.p.fastq,r1.u.fastq,r2.p.fastq,r2.u.fastq>                 |
+     -n <correo@***.**>                                               |
+  #(-n)Fuera de las opciones de configuración de ejecución:           |
+    La opción -n notificará vía email cuando el proceso haya          |
+    culminado.                                                        |
+                                                                      |
+----------------------------------------------------------------------|
+Estructura de Datos                                                   |
+El algoritmo funciona sobre una estructura base de archivos como se   |
+muestra a continuación:                                               |
+|                                                                     |
+|                                                                     |
+--Carpeta contenedora de las diferentes muestras                      |
+      |                                                               |
+      |-Muestra1                                                      |
+      |     |                                                         |
+      |     |- Reads_Clean(nombre implementado por defecto)           |
+      |     |       |                                                 |
+      |     |       |-******R1_001.paired.fastq.gz                    |
+      |     |       |-******R1_001.unpaired.fastq.gz                  |
+      |     |       |-******R2_001.paired.fastq.gz                    |
+      |     |       |-******R2_001.unpaired.fastq.gz                  |
+      |     |                                                         |
+      |     |- Reads_Original(no abligatoria)                         |
+      |                                                               |
+      |-Muestra2                                                      |
+      |     |                                                         |
+      |     |- Reads_Clean(nombre implementado por defecto)           |
+      |     |       |-******R1_001.paired.fastq.gz                    |
+      |     |       |-******R1_001.unpaired.fastq.gz                  |
+      |     |       |-******R2_001.paired.fastq.gz                    |
+      |     |       |-******R2_001.unpaired.fastq.gz                  |
+      |     |- Reads_Original(no abligatoria)                         |
+      |                                                               |
+      |-  .                                                           |
+      |-  .                                                           |
+      |-  .                                                           |
+      |-Muestra#                                                      |
+                                                                      |
+                                                                      |
+Muestra#                                                              |
+    carpeta referente a un aislamiento bacteriano, donde reciden      |
+    los archivos suficientes para la ejecución del script             |
+Reads_Clean                                                           |
+    Carpeta incluida en la Muestra# con las lecturas de secuenciacion |
+    filtradas preferiblemente,(establecer con el parametro <-d>)      |
+******R#_001.paired.fastq.gz                                          |
+    Archivos con formato fastq, fastq.gz con las lecturas pareadas    |
+    de secuenciación.                                                 |
+******R#_001.unpaired.fastq.gz                                        |
+    Archivos con formato fastq, fastq.gz con las lecturas no pareadas |
+    de secuenciación.                                                 |
+                                                                      |
+El algoritmo crea una estructura de archivos en cada muestra, como    |
+se evidencia a continuación:                                          |
+Es necesario que el usuario que ejecuta el script cuente con permisos |
+de edición, sobre estas carpetas.                                     |
+|                                                                     |
+|                                                                     |
+--Carpeta contenedora de las diferentes muestras                      |
+      |                                                               |
+      |-Muestra1                                                      |
+      |     |                                                         |
+      |     |- Reads_Clean(nombre implementado por defecto)           |
+      |     |       |                                                 |
+      |     |       |-******R1_001.paired.fastq.gz(por defecto)       |
+      |     |       |-******R1_001.unpaired.fastq.gz                  |
+      |     |       |-******R2_001.paired.fastq.gz                    |
+      |     |       |-******R2_001.unpaired.fastq.gz                  |
+      |     |                                                         |
+      |     |- Reads_Original(no abligatoria)                         |
+      |     |                                                         |
+      |     |- Assembly                                               |
+      |     |       |                                                 |
+      |     |       |-Plasmitest                                      |
+      |     |       |    |                                            |
+      |     |       |    |-Plasmidspades                              |
+      |     |       |    |    |                                       |
+      |     |       |    |    |-Archivos creados por PlasmidSpades.   |
+      |     |       |    |                                            |
+      |     |       |    |-Profundidad                                |
+      |     |       |    |    |                                       |
+      |     |       |    |    |-nodos_cov.txt.                        |
+      |     |       |    |                                            |
+      |     |       |    |-Homologia                                  |
+      |     |       |    |    |                                       |
+      |     |       |    |    |-No_chromosomeDB_blastn3_out.csv       |
+      |     |       |    |    |-No_chromosomeDB_nodos.txt             |
+      |     |       |    |    |-PlasmidsDB_blastn3_out.csv            |
+      |     |       |    |    |-PlasmidsDB_nodos.txt                  |
+      |     |       |    |                                            |
+      |     |       |    |-Plasflow                                   |
+      |     |       |    |    |                                       |
+      |     |       |    |    |-Archivos creados por PlasFlow.        |
+      |     |       |    |                                            |
+      |     |       |    |-PlasmidSpades_contigs.fasta                |
+      |     |       |                                                 |
+      |     |       |-Spades(creada)                                  |
+      |     |            |                                            |
+      |     |            |-Archivos creados por Spades.               |
+      |     |                                                         |
+      |     |                                                         |
+      |     |- Annotation                                             |
+      |     |       |                                                 |
+      |     |       |-Prokka                                          |
+      |     |            |                                            |
+      |     |            |-*******_C.**                               |
+      |     |            |-*******_P.**                               |
+      |     |            |-*******_G.**                               |
+      |     |                                                         |
+      |     |- consolidated_chrom.fasta                               |
+      |     |                                                         |
+      |     |- consolidated_plasmids.fasta                            |
+      |     |                                                         |
+      |     |- spades_contigs.fasta                                   |
+      |                                                               |
+      |-Muestra2                                                      |
+      |     |                                                         |
+      |     |- Reads_Clean(nombre implementado por defecto)           |
+      |     |- Reads_Original(no abligatoria)                         |
+      |                                                               |
+      |-  .                                                           |
+      |-  .                                                           |
+      |-  .                                                           |
+      |-Muestra#                                                      |
+      |                                                               |
+      |-Anotation_Bacteria.log                                        |
+                                                                      |
+nodos_cov.txt.                                                        |
+    Archivo generado con los nodos identificados como plásmidos       |
+    por sus caracteristicas de profundidad.                           |
+                                                                      |
+Archivos creados por PlasmidSpades.                                   |
+    Archivos consecuencia de la ejecución de la herramienta           |
+    PlasmidSpades, junto con el archivo generado                      |
+    "nodos_plasmidspades.txt" con los nodos de spades identificados   |
+    por homologia.                                                    |
+                                                                      |
+No_chromosomeDB_blastn3_out.csv.                                      |
+    Archivo en formato csv con el aliniamiento Blast entre los        |
+    contigs de Spades VS la base de datos de cromosoma especifico.    |
+                                                                      |
+PlasmidsDB_blastn3_out.csv.                                           |
+    Archivo en formato csv con el aliniamiento Blast entre los        |
+    contigs de Spades VS la base de datos de Plasmidos.               |    
+                                                                      |
+No_chromosomeDB_nodos.txt.                                            |
+    Archivo con los nodos que pasaron el filtro de homologia,         |
+    provenientes del aliniamiento Blast de cromosoma.                 |
+                                                                      |
+PlasmidsDB_nodos.txt.                                                 |
+    Archivo con los nodos que pasaron el filtro de homologia,         |
+    provenientes del aliniamiento Blast de plásmidos.                 |
+                                                                      |
+Archivos creados por PlasFlow.                                        |
+    Archivos consecuencia de la ejecución de la herramienta           |
+    PlasFlow, junto con el archivo generado "Plasflow.txt"            |
+    con los nodos de spades identificados IA.                         |
+                                                                      |
+PlasmidSpades_contigs.fasta.                                          |
+    Copia del ensamblaje de plásmidos creado por PlasmidSpades.       |
+                                                                      |
+*******_C.**.                                                         |
+    Archivos Generados por Prokka en la anotación de las secuencias   |
+    referentes a cromosoma.                                           |
+                                                                      |
+*******_P.**.                                                         |
+    Archivos Generados por Prokka en la anotación de las secuencias   |
+    referentes a plásmidos.                                           |
+                                                                      |
+*******_G.**.                                                         |
+    Archivos Generados por Prokka en la anotación de las secuencias   |
+    referentes al genoma completo.                                    |
+                                                                      |
+consolidated_chrom.fasta.                                             | 
+    Archivo multifasta con la secuencias identificadas como           |
+    parte del cromosoma.                                              |
+                                                                      |
+consolidated_plasmids.fasta.                                          | 
+    Archivo multifasta con la secuencias identificadas como           |
+    parte del plasmidos.                                              |
+                                                                      |
+spades_contigs.fasta                                                  |
+    Copia del ensamblaje de novo creado por Spades.                   |
+                                                                      |
+Anotation_Bacteria.log                                                |
+    Archivo informativo de ejecucion, con la descripcion y tiempo de  |
+    ejecucion de cada proceso.                                        |
+                                                                      |
+                                                                      |
+El algoritmo tiene en la carpeta de alojamiento una extructura:       |
+|                                                                     |
+|                                                                     |
+|-script                                                              |
+    |                                                                 |
+    |-python Create_Update_BD.py                                      |
+    |                                                                 |
+    |-.params.log                                                     |
+    |                                                                 |
+    |-User_Manual.txt                                                 |
+                                                                      |
+params.log                                                            |
+    Archivo que guarda las configuraciones usadas previamente por     | 
+    el usuario.                                                       |
+----------------------------------------------------------------------|
+Version 1.0                                                           |
+                                                                      |
+Creado por el grupo de Bioinformática del Instituto de Biotecnología  |
+ de la Universidad Nacional de Colombia 2021-05,                      |
+ grupo de investigación dirigido                                      |
+por el profesor Phd. Emiliano Barreto Hernandez,                      |
+contacto: ebarretoh@unal.edu.co                                       |
+Joven Investigador: Ing Diego Camilo Talero Osorio                    |
+contacto: dtalero@unal.edu.co                                         |
+......................................................................|  
