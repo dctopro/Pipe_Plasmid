@@ -1875,7 +1875,7 @@ def enviarnot(correo):
   message+='\n\tVerificar en la carpeta de destino el archivo info.log y la existencia de la base de datos blast'
   message+='\n\tGracias por implementar Create_UpdateBD.py \n Exito en sus investigaciones...'
   # setup the parameters of the message
-  password = "Taler*1019"
+  password = ""
   msg['From'] = "dtalero@unal.edu.co"
   msg['To'] = str(correo)
   msg['Subject'] = "Notificacion  Create_UpdateBD"
